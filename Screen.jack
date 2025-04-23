@@ -1,42 +1,213 @@
-// This file is part of www.nand2tetris.org
-// and the book "The Elements of Computing Systems"
-// by Nisan and Schocken, MIT Press.
-// File name: projects/12/Screen.jack
-/**
- * A library of functions for displaying graphics on the screen.
- * The Hack physical screen consists of 512 rows (indexed 0..511, top to bottom)
- * of 256 pixels each (indexed 0..255, left to right). The top left pixel on 
- * the screen is indexed (0,0).
- */
 class Screen {
 
-    /** Initializes the Screen. */
-    function void init() {
+  static boolean color; //Current drawing color: true=black, false=white
+  static Array bitmask; //Array holding powers of 2 for pixel bitmasking
+
+  function void init() {
+    var int i, val;
+    var Array mask;
+
+    let mask = Array.new(16); //Create array to hold bitmasks for 16-bit rows
+    let val = 1;
+    let i = 0;
+
+    while (i < 16) {
+      let mask[i] = val; //Set mask[i] = 2^i
+      let val = val + val; //Double the value (1, 2, 4, 8, ...)
+      let i = i + 1;
     }
 
-    /** Erases the entire screen. */
-    function void clearScreen() {
+    let bitmask = mask; //Assign local mask to static bitmask
+    let color = true; //Default color: black
+    return;
+  }
+
+  function void clearScreen() {
+    return; //implement screen clear
+  }
+
+  function void setColor(boolean b) {
+    let color = b; //Update current drawing color
+    return;
+  }
+
+  function void drawPixel(int x, int y) {
+    var int word, address, bit, value;
+
+    if ((x < 0) | (x > 511)) {
+      do Sys.error(7); //Invalid x coordinate
+    }
+    if ((y < 0) | (y > 255)) {
+      do Sys.error(7); //Invalid y coordinate
     }
 
-    /** Sets the current color, to be used for all subsequent drawXXX commands.
-     *  Black is represented by true, white by false. */
-    function void setColor(boolean b) {
+    let word = x / 16; //Determine 16-bit word offset in row
+    let address = 16384 + (y * 32) + word; //Calculate screen memory address
+    let bit = x - (word * 16); //Bit position within the 16-bit word
+    let value = Memory.peek(address); //Read current value at address
+
+    if (color) {
+      do Memory.poke(address, value | bitmask[bit]); //Set bit to 1 (black)
+    } else {
+      do Memory.poke(address, value & (~bitmask[bit])); //Set bit to 0 (white)
     }
 
-    /** Draws the (x,y) pixel, using the current color. */
-    function void drawPixel(int x, int y) {
+    return;
+  }
+
+  function void drawLine(int x1, int y1, int x2, int y2) {
+    var int dx, dy;
+
+    do Screen.validateCoords(x1, y1, 8); //Check if x1,y1 are in bounds
+    do Screen.validateCoords(x2, y2, 8); //Check if x2,y2 are in bounds
+
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+
+    if (dx = 0) {
+      do Screen.drawVerticalLine(x1, Math.min(y1, y2), Math.max(y1, y2)); //Vertical
+    } else {
+      if (dy = 0) {
+        do Screen.drawHorizontalLine(y1, Math.min(x1, x2), Math.max(x1, x2)); //Horizontal
+      } else {
+        if ((dx > 0) & (dy > 0)) {
+          do Screen.drawPositiveLine(x1, y1, dx, dy); //Down-right slope
+        }
+        if ((dx < 0) & (dy < 0)) {
+          do Screen.drawPositiveLine(x2, y2, -dx, -dy); //Up-left slope
+        }
+        if ((dx > 0) & (dy < 0)) {
+          do Screen.drawNegativeLine(x1, y1, dx, dy); //Up-right slope
+        }
+        if ((dx < 0) & (dy > 0)) {
+          do Screen.drawNegativeLine(x2, y2, -dx, -dy); //Down-left slope
+        }
+      }
     }
 
-    /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
-    function void drawLine(int x1, int y1, int x2, int y2) {
+    return;
+  }
+
+  function void drawPositiveLine(int x, int y, int dx, int dy) {
+    var int a, b, d;
+
+    let a = 0;
+    let b = 0;
+    let d = 0;
+
+    do Screen.drawPixel(x, y); //Draw starting pixel
+
+    while ((a < dx) & (b < dy)) {
+      if (d > 0) {
+        let a = a + 1;
+        let d = d - dy;
+      } else {
+        let b = b + 1;
+        let d = d + dx;
+      }
+      do Screen.drawPixel(x + a, y + b); //Draw next pixel
     }
 
-    /** Draws a filled rectangle whose top left corner is (x1, y1)
-     *  and bottom right corner is (x2,y2), using the current color. */
-    function void drawRectangle(int x1, int y1, int x2, int y2) {
+    return;
+  }
+
+  function void drawNegativeLine(int x, int y, int dx, int dy) {
+    var int a, b, d;
+
+    let a = 0;
+    let b = 0;
+    let d = 0;
+
+    do Screen.drawPixel(x, y); //Draw starting pixel
+
+    while ((a < dx) & (b > dy)) {
+      if (d > 0) {
+        let b = b - 1;
+        let d = d - dx;
+      } else {
+        let a = a + 1;
+        let d = d - dy;
+      }
+      do Screen.drawPixel(x + a, y + b); //Draw next pixel
     }
 
-    /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
-    function void drawCircle(int x, int y, int r) {
+    return;
+  }
+
+  function void drawVerticalLine(int x, int y1, int y2) {
+    do Screen.drawPixel(x, y1); //Start at top
+    while (y1 < y2) {
+      let y1 = y1 + 1;
+      do Screen.drawPixel(x, y1); //Draw downward
     }
+    return;
+  }
+
+  function void drawHorizontalLine(int y, int x1, int x2) {
+    do Screen.drawPixel(x1, y); //Start left
+    while (x1 < x2) {
+      let x1 = x1 + 1;
+      do Screen.drawPixel(x1, y); //Draw right
+    }
+    return;
+  }
+
+  function void drawRectangle(int x1, int y1, int x2, int y2) {
+    if((x1 < 0) | (x1 > 511)) {
+      do Sys.error(9); //Invalid x1
+    }
+    if((x2 < 0) | (x2 > 511)) {
+      do Sys.error(9); //Invalid x2
+    }
+    if((y1 < 0) | (y1 > 255)) {
+      do Sys.error(9); //Invalid y1
+    }
+    if((y2 < 0) | (y2 > 255)) {
+      do Sys.error(9); //Invalid y2
+    }
+    if((x1 > x2) | (y1 > y2)) {
+      do Sys.error(9); //Invalid rectangle coordinates
+    }
+
+    do Screen.drawVerticalLine(x1, y1, y2); //Left side
+    while(x1 < x2) {
+      let x1 = x1 + 1;
+      do Screen.drawVerticalLine(x1, y1, y2); //Fill to right
+    }
+    return;
+  }
+
+  function void drawCircle(int x, int y, int r) {
+    var int h, a, cy;
+
+    if ((x < 0) | (x > 511)) {
+      do Sys.error(12); //Invalid x
+    }
+    if ((y < 0) | (y > 255)) {
+      do Sys.error(12); //Invalid y
+    }
+    if ((r < 0) | (r > 181)) {
+      do Sys.error(13); //Invalid radius
+    }
+
+    let cy = Math.max(0, y - r); //Start drawing from top of circle
+    while ((cy < 256) & (cy < (y + r + 1))) {
+      let h = Math.abs(y - cy); //Vertical distance from center
+      let a = Math.sqrt((r * r) - (h * h)); //Half-width of horizontal slice
+      do Screen.drawHorizontalLine(cy, Math.max(0, x - a), Math.min(511, x + a)); //Draw slice
+      let cy = cy + 1;
+    }
+
+    return;
+  }
+
+  function void validateCoords(int x, int y, int code) {
+    if ((x < 0) | (x > 511)) {
+      do Sys.error(code); //Check x bounds
+    }
+    if ((y < 0) | (y > 255)) {
+      do Sys.error(code); //Check y bounds
+    }
+    return;
+  }
 }

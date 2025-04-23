@@ -1,49 +1,166 @@
-// This file is part of www.nand2tetris.org
-// and the book "The Elements of Computing Systems"
-// by Nisan and Schocken, MIT Press.
-// File name: projects/12/Math.jack
-/**
- *  A library of commonly used mathematical functions.
- *  All functions runs in O(n), where n is the number of bits used
- *  for representing a two's complement integer value (16 in the Hack computer). 
- *  Note: Jack compilers implement multiplication and division
- *  using calls to OS functions in this class.
- */
 class Math {
-    static int n;             // Number of bits used for representing a two's complement integer
-    static Array powersOfTwo; // Stores 2^0, 2^1, 2^2,..., 2^(n-1)
 
-    // Initializes the Math library.
-    function void init() {
+  static Array powersOf2; //Holds precomputed powers of 2 from 2^0 to 2^15
+
+  function void init() {
+    var int i, value;
+
+    let powersOf2 = Array.new(16); //Create a new array of size 16
+    let i = 0;
+    let value = 1;
+
+    while (i < 16) {
+      let powersOf2[i] = value; //Store the power of 2 at index i
+      let value = value + value; //Double the value (2^n)
+      let i = i + 1;
     }
 
-    /** Returns the product of x and y. 
-     *  When a Jack compiler detects the multiplication operator '*'
-     *  in an expression, it handles it by invoking this method. 
-     *  Thus, in Jack, x * y and Math.multiply(x,y) return the same value. */
-    function int multiply(int x, int y) {
+    return;
+  }
+
+  function int abs(int x) {
+    if (x < 0) {
+      return -x; //Return negation if x is negative
+    }
+    return x; //Return x as-is if non-negative
+  }
+
+  function int multiply(int x, int y) {
+    var int result, a, b, neg, i, shifted;
+
+    let result = 0; //Final product initialized to 0
+    let a = x; //Copy of x for processing
+    let b = y; //Copy of y for processing
+    let neg = 0; //Tracks if result should be negative
+
+    //Convert a to positive if it's negative
+    if (a < 0) {
+      let a = -a; //Make a positive (new local a due to let)
+      let neg = neg + 1; //One sign flip
     }
 
-    /** Returns the integer part of x / y.
-     *  When a Jack compiler detects the division operator '/'
-     *  an an expression, it handles it by invoking this method.
-     *  Thus, x/y and Math.divide(x,y) return the same value. */
-    function int divide(int x, int y) {
+    //Convert b to positive if it's negative
+    if (b < 0) {
+      let b = -b; //Make b positive (new local b due to let)
+      let neg = neg + 1; //Another sign flip
     }
 
-    /** Returns the integer part of the square root of x. */
-    function int sqrt(int x) {
+    let i = 0; //Bit index for processing b
+    let shifted = a; //Current shifted version of a (acts like a << i)
+
+    //Loop through all 16 bits of b
+    while (i < 16) {
+      //If the i-th bit of b is 1, add shifted a to result
+      if (Math.bit(b, i) = 1) {
+        let result = result + shifted; //Accumulate partial product
+      }
+      let shifted = shifted + shifted; //Double shifted (equivalent to left shift)
+      let i = i + 1; //Move to next bit
     }
 
-    /** Returns the greater value. */
-    function int max(int a, int b) {
+    //If only one number was negative, flip the result
+    if (neg = 1) {
+      return -result; //Negative product
+    }
+    return result; //Final result
+  }
+
+  function int bit(int x, int b) {
+    //Check if the b-th bit in x is set using bitwise AND with 2^b
+    if ((x & powersOf2[b]) > 0) {
+      return 1; //Bit is set
+    }
+    return 0; //Bit is not set
+  }
+
+
+  function int divide(int x, int y) {
+    var int result, absX, absY, neg;
+
+    if (y = 0) {
+      do Sys.error(3); //Division by zero error
     }
 
-    /** Returns the smaller value. */
-    function int min(int a, int b) {
+    let absX = x;
+    let absY = y;
+    let neg = 0;
+
+    if (x < 0) {
+      let absX = -x; //Make numerator positive
+      let neg = neg + 1;
     }
 
-    /** Returns the absolute value of x. */
-    function int abs(int x) {
+    if (y < 0) {
+      let absY = -y; //Make denominator positive
+      let neg = neg + 1;
     }
+
+    let result = Math.divideRec(absX, absY); //Recursive division
+
+    if (neg = 1) {
+      return -result; //Flip result if signs differ
+    }
+
+    return result;
+  }
+
+  function int divideRec(int x, int y) {
+    var int q, doubleY;
+
+    if (y > x) {
+      return 0; //Base case: if y > x, result is 0 because y can't fit in x
+    }
+
+    let doubleY = y + y; //Compute 2*y to double the divisor
+    let q = Math.divideRec(x, doubleY); //Recursive call to divide x by 2y
+
+    //Check if adding one more y would overshoot x
+    if (x < (doubleY * q + y)) {
+      return q + q; //Return 2q if extra y can't fit
+    } else {
+      return q + q + 1; //Return 2q + 1 if extra y fits
+    }
+  } 
+
+function int min(int x, int y) {
+    if (x < y) {
+      return x; //Return smaller value
+    }
+    return y; //Return y if it's smaller or equal
+}
+
+
+  function int max(int x, int y) {
+    if (x > y) {
+      return x; //Return larger
+    }
+    return y;
+  }
+
+  function int sqrt(int x) {
+    var int left, right, mid, midSq, result;
+
+    if (x < 0) {
+      do Sys.error(4); //Square root of negative number
+    }
+
+    let left = 0;
+    let right = Math.min(x, 181); //Limit search range to avoid overflow; sqrt(32767) ≈ 181
+    let result = 0; //Store the best found square root so far
+
+    while (left < right + 1) {
+      let mid = (left + right) / 2; //Find the midpoint of the current range
+      let midSq = mid * mid; //Calculate square of mid
+
+      if (midSq > x) {
+        let right = mid - 1; //mid is too large, narrow search to left half
+      } else {
+        let result = mid; //mid is a valid candidate, store it
+        let left = mid + 1; //Try to find a larger valid candidate in right half
+      }
+    }
+
+    return result; //Return the integer part of the square root
+  }
+
 }
