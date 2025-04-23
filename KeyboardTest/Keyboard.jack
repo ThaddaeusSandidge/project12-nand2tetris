@@ -1,0 +1,94 @@
+
+
+
+class Keyboard {
+
+  function void init() {
+    return;
+  }
+
+    //returns the ascii code of the currently pressed key
+    function char keyPressed() {
+        return Memory.peek(24576);
+    }
+
+    function char readChar() {
+        var char ch;
+
+        // Output dummy character to flush buffer
+        do Output.printChar(0);
+
+        // Wait for key press
+        while (Keyboard.keyPressed() = 0) {
+            // Do nothing until key is pressed
+        }
+        let ch = Keyboard.keyPressed(); // Store the key that was pressed
+
+        // Wait for key release
+        while (Keyboard.keyPressed() > 0) {
+            // Do nothing until key is released
+        }
+
+        // Clean up dummy char and reprint actual key
+        do Output.backSpace();
+        do Output.printChar(ch);
+
+        return ch;
+    }
+
+
+  function String readLine(String message) {
+    var char ch;
+    var String line;
+
+
+    //prompt
+    do Output.printString(message);
+
+    // new string
+    let line = String.new(64);
+
+    // read characters until enter key is pressed
+    while (true) {
+        // read character
+        let ch = Keyboard.readChar();
+        
+        // check for enter
+        if (ch = 128) {
+            //remove echoed character
+            do Output.backSpace();
+            //new line
+            do Output.println();
+            return line;
+        }
+
+        // check for backspace
+        if (ch = 129) {        
+            //remove echoed character
+            do Output.backSpace();
+            //remove char left of cursor
+            do Output.backSpace();
+            //remove char from string
+            do line.eraseLastChar();
+        } else {
+            // Regular character
+            do line.appendChar(ch);
+        }
+    }
+
+        return line; //unreachable
+    }
+
+
+
+  function int readInt(String message) {
+
+    var String line;
+    //call readline function
+
+    let line = Keyboard.readLine(message);
+
+    //convert string to int
+    return line.intValue();
+  }
+}

@@ -11,12 +11,9 @@
  * data types.
  */
 class Array {
-
     /** Constructs a new Array of the given size. */
     function Array new(int size) {
-        var Array this;
-        let this = Memory.alloc(size);
-        return this;
+        return Memory.alloc(size);
     }
 
 
