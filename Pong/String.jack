@@ -3,6 +3,10 @@ class String {
     field int buffer_len;
     field int str_len;
     
+    function void init(){
+        return;
+    }
+
     /** Constructs a new empty String with a maximum length of maxLength. */
     constructor String new(int maxLength) {
         if( maxLength = 0 ) {

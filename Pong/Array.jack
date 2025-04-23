@@ -12,6 +12,10 @@
  */
 class Array {
 
+    function void init(){
+        return;
+    }
+
     /** Constructs a new Array of the given size. */
     function Array new(int size) {
         return Memory.alloc(size);
